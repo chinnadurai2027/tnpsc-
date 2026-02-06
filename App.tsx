@@ -1,29 +1,27 @@
 
 import React, { useState, useEffect } from 'react';
-import { Layout } from './components/Layout';
-import { CheckIn } from './components/CheckIn';
-import { TaskExecutor } from './components/TaskExecutor';
-import { ProgressTracker } from './components/ProgressTracker';
-import { CurrentAffairs } from './components/CurrentAffairs';
-import { SyllabusAudit } from './components/SyllabusAudit';
-import { MistakeBank } from './components/MistakeBank';
-import { AppState, DailyLog, StudySlot, StudyStatus, ProgressEntry, CurrentAffairsEntry, MistakeEntry } from './types';
-import { INITIAL_APP_STATE } from './constants';
-import { loadState, saveState } from './services/storageService';
-import { analyzeDailyPerformance } from './services/geminiService';
+import { Layout } from './components/Layout.tsx';
+import { CheckIn } from './components/CheckIn.tsx';
+import { TaskExecutor } from './components/TaskExecutor.tsx';
+import { ProgressTracker } from './components/ProgressTracker.tsx';
+import { CurrentAffairs } from './components/CurrentAffairs.tsx';
+import { SyllabusAudit } from './components/SyllabusAudit.tsx';
+import { MistakeBank } from './components/MistakeBank.tsx';
+import { AppState, DailyLog, StudySlot, StudyStatus, ProgressEntry, CurrentAffairsEntry, MistakeEntry } from './types.ts';
+import { INITIAL_APP_STATE } from './constants.ts';
+import { loadState, saveState } from './services/storageService.ts';
+import { analyzeDailyPerformance } from './services/geminiService.ts';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(INITIAL_APP_STATE);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Load state on mount
   useEffect(() => {
     const saved = loadState();
     if (saved) setState(saved);
   }, []);
 
-  // Save state on change
   useEffect(() => {
     if (state !== INITIAL_APP_STATE) {
       saveState(state);
@@ -90,7 +88,6 @@ const App: React.FC = () => {
       const analysis = await analyzeDailyPerformance(currentLog);
       
       setState(prev => {
-        // Streak logic: Check if previous completed day was yesterday
         let newStreak = prev.streak || 0;
         const completedLogs = prev.logs.filter(l => l.isCompleted);
         
@@ -105,9 +102,8 @@ const App: React.FC = () => {
           if (diffDays === 1) {
             newStreak += 1;
           } else if (diffDays > 1) {
-            newStreak = 1; // Reset streak if skip occurred
+            newStreak = 1;
           }
-          // If diffDays is 0 (same day session), streak remains same
         }
 
         return {
@@ -142,7 +138,6 @@ const App: React.FC = () => {
     }));
   };
 
-  // Handler for adding new mistake diagnoses to the global state
   const addMistakeEntry = (entry: MistakeEntry) => {
     setState(prev => ({
       ...prev,
@@ -240,7 +235,6 @@ const App: React.FC = () => {
       {activeTab === 'dashboard' && renderDashboard()}
       {activeTab === 'syllabus' && <SyllabusAudit progress={state.syllabusProgress} onUpdate={updateSyllabusProgress} />}
       {activeTab === 'progress' && <ProgressTracker entries={state.progressLogs || []} onAdd={addProgressEntry} />}
-      {/* Integrated MistakeBank component view */}
       {activeTab === 'mistakes' && <MistakeBank entries={state.mistakeEntries || []} onAdd={addMistakeEntry} />}
       {activeTab === 'ca' && <CurrentAffairs entries={state.currentAffairs || []} onAdd={addCurrentAffairs} />}
       {activeTab === 'history' && renderHistory()}
@@ -268,19 +262,6 @@ const App: React.FC = () => {
                     "{currentLog.correction}"
                   </p>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6">
-                 <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5">
-                    <span className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Throughput</span>
-                    <span className="text-2xl font-black text-white">{currentLog.slots.length} Blocks Finished</span>
-                 </div>
-                 <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5">
-                    <span className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Efficiency</span>
-                    <span className="text-2xl font-black text-white">
-                      {Math.round((currentLog.slots.filter(s => s.status === StudyStatus.DONE).length / currentLog.slots.length) * 100)}%
-                    </span>
-                 </div>
               </div>
             </div>
           </div>
