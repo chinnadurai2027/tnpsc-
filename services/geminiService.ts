@@ -1,10 +1,20 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("API_KEY is missing. AI features will be limited.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 // Generate a structured daily study plan based on user parameters
 export async function generateDailyPlan(dayNum: number, availableHours: number, constraints: string, previousPerformance: string) {
+  const ai = getAI();
+  if (!ai) throw new Error("AI service not initialized. Check API Key.");
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Act as a TNPSC Group 1 Study Planner. Generate a study plan for Day ${dayNum}.
@@ -39,24 +49,34 @@ export async function generateDailyPlan(dayNum: number, availableHours: number, 
 
 // Analyze completed study logs to provide actionable feedback
 export async function analyzeDailyPerformance(logs: any) {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Analyze this TNPSC study log and provide a verdict (Strong/Average/Poor) and ONE precise correction for tomorrow. No generic advice.
-    Logs: ${JSON.stringify(logs)}`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          verdict: { type: Type.STRING, description: "Performance assessment: Strong, Average, or Poor" },
-          correction: { type: Type.STRING, description: "A single, specific tactical improvement for tomorrow" }
-        },
-        required: ["verdict", "correction"]
-      }
-    }
-  });
+  const ai = getAI();
+  if (!ai) {
+    return { verdict: 'Average', correction: 'AI Analysis skipped (API key not found).' };
+  }
 
-  const text = response.text;
-  if (!text) throw new Error("AI failed to analyze performance.");
-  return JSON.parse(text);
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Analyze this TNPSC study log and provide a verdict (Strong/Average/Poor) and ONE precise correction for tomorrow. No generic advice.
+      Logs: ${JSON.stringify(logs)}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            verdict: { type: Type.STRING, description: "Performance assessment: Strong, Average, or Poor" },
+            correction: { type: Type.STRING, description: "A single, specific tactical improvement for tomorrow" }
+          },
+          required: ["verdict", "correction"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("AI failed to analyze performance.");
+    return JSON.parse(text);
+  } catch (err) {
+    console.error("AI analysis failed:", err);
+    return { verdict: 'Average', correction: 'Manual review required: AI analysis failed.' };
+  }
 }
