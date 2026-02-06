@@ -1,16 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { Layout } from './components/Layout.tsx';
-import { CheckIn } from './components/CheckIn.tsx';
-import { TaskExecutor } from './components/TaskExecutor.tsx';
-import { ProgressTracker } from './components/ProgressTracker.tsx';
-import { CurrentAffairs } from './components/CurrentAffairs.tsx';
-import { SyllabusAudit } from './components/SyllabusAudit.tsx';
-import { MistakeBank } from './components/MistakeBank.tsx';
-import { AppState, DailyLog, StudySlot, StudyStatus, ProgressEntry, CurrentAffairsEntry, MistakeEntry } from './types.ts';
-import { INITIAL_APP_STATE } from './constants.ts';
-import { loadState, saveState } from './services/storageService.ts';
-import { analyzeDailyPerformance } from './services/geminiService.ts';
+import { Layout } from './components/Layout';
+import { CheckIn } from './components/CheckIn';
+import { TaskExecutor } from './components/TaskExecutor';
+import { ProgressTracker } from './components/ProgressTracker';
+import { CurrentAffairs } from './components/CurrentAffairs';
+import { SyllabusAudit } from './components/SyllabusAudit';
+import { MistakeBank } from './components/MistakeBank';
+import { AppState, DailyLog, StudySlot, StudyStatus, ProgressEntry, CurrentAffairsEntry, MistakeEntry } from './types';
+import { INITIAL_APP_STATE } from './constants';
+import { loadState, saveState } from './services/storageService';
+import { analyzeDailyPerformance } from './services/geminiService';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(INITIAL_APP_STATE);
