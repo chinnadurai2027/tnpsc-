@@ -60,7 +60,8 @@ export const SyllabusAudit: React.FC<SyllabusAuditProps> = ({ progress, onUpdate
             <p className="font-bold text-sm opacity-80 uppercase tracking-widest">Weighted completion across all 10 Mission Units</p>
          </div>
          <div className="text-6xl font-black font-mono">
-           {Math.round(Object.values(progress).reduce((a, b) => a + b, 0) / 10)}%
+           {/* Fix: Cast Object.values to number array and define explicit types for reduce to avoid 'unknown' operation errors */}
+           {Math.round((Object.values(progress) as number[]).reduce((a: number, b: number) => a + b, 0) / 10)}%
          </div>
       </div>
     </div>

@@ -1,19 +1,21 @@
 
 import React from 'react';
+import { User } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
   currentDay: number;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  user?: User | null;
+  onLogout?: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentDay, activeTab, setActiveTab }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentDay, activeTab, setActiveTab, user, onLogout }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '⚡' },
     { id: 'syllabus', label: 'Audit', icon: '🎯' },
     { id: 'progress', label: 'Progress', icon: '📈' },
-    // Added mistakes tab to the navigation to house the MistakeBank component
     { id: 'mistakes', label: 'Vault', icon: '🔒' },
     { id: 'ca', label: 'CA Pulse', icon: '📰' },
     { id: 'history', label: 'History', icon: '📅' },
@@ -50,14 +52,30 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentDay, activeTab,
           ))}
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-white/5">
-          <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5">
-            <p className="text-[9px] uppercase font-black tracking-[0.2em] text-emerald-500/60 mb-3">Live Session</p>
-            <div className="flex items-center justify-between">
-              <span className="text-white font-mono font-black text-lg">DAY {currentDay}</span>
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+        <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
+          {user && (
+            <div className="flex flex-col space-y-2">
+              <div className="bg-white/5 px-4 py-3 rounded-2xl flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500">Identity</span>
+                  <span className="text-xs font-bold text-white truncate max-w-[100px]">{user.username}</span>
+                </div>
+                <button 
+                  onClick={onLogout}
+                  className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all text-[10px]"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="bg-slate-900/40 p-5 rounded-3xl border border-white/5">
+                <p className="text-[9px] uppercase font-black tracking-[0.2em] text-emerald-500/60 mb-3">Live Session</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-white font-mono font-black text-lg">DAY {currentDay}</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </aside>
 
@@ -77,9 +95,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentDay, activeTab,
           </div>
           <div className="flex items-center space-x-6">
             <div className="hidden lg:flex flex-col text-right">
-               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Persistence</span>
-               <span className="text-xs font-bold text-slate-300">Local DB Active</span>
+               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Database Sync</span>
+               <span className="text-xs font-bold text-slate-300">IndexedDB Protocol Active</span>
             </div>
+            {user && (
+              <button onClick={onLogout} className="md:hidden text-slate-400 text-xs font-black uppercase tracking-widest border border-white/10 px-3 py-1 rounded-lg">Logout</button>
+            )}
           </div>
         </header>
 

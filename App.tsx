@@ -7,26 +7,54 @@ import { ProgressTracker } from './components/ProgressTracker';
 import { CurrentAffairs } from './components/CurrentAffairs';
 import { SyllabusAudit } from './components/SyllabusAudit';
 import { MistakeBank } from './components/MistakeBank';
-import { AppState, DailyLog, StudySlot, StudyStatus, ProgressEntry, CurrentAffairsEntry, MistakeEntry } from './types';
+import { Auth } from './components/Auth';
+import { AppState, DailyLog, StudySlot, StudyStatus, ProgressEntry, CurrentAffairsEntry, MistakeEntry, User } from './types';
 import { INITIAL_APP_STATE } from './constants';
-import { loadState, saveState } from './services/storageService';
+import { saveUserData, loadUserData, getSessionId, saveSessionId, clearSession, authenticateUser } from './services/storageService';
 import { analyzeDailyPerformance } from './services/geminiService';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(INITIAL_APP_STATE);
   const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
-    const saved = loadState();
-    if (saved) setState(saved);
+    const initAuth = async () => {
+      const sessId = getSessionId();
+      if (sessId) {
+        const saved = await loadUserData(sessId);
+        if (saved) {
+          setState(saved);
+        }
+      }
+      setBooting(false);
+    };
+    initAuth();
   }, []);
 
   useEffect(() => {
-    if (state !== INITIAL_APP_STATE) {
-      saveState(state);
+    if (state.user) {
+      saveUserData(state);
     }
   }, [state]);
+
+  const handleAuthSuccess = async (user: User) => {
+    setLoading(true);
+    const data = await loadUserData(user.id);
+    if (data) {
+      setState(data);
+    } else {
+      setState({ ...INITIAL_APP_STATE, user });
+    }
+    saveSessionId(user.id);
+    setLoading(false);
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setState(INITIAL_APP_STATE);
+  };
 
   const handleCheckIn = (data: { date: string; dayNumber: number; tasks: Partial<StudySlot>[] }) => {
     const slots: StudySlot[] = data.tasks.map((task) => ({
@@ -152,6 +180,16 @@ const App: React.FC = () => {
     }));
   };
 
+  if (booting) return (
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+
+  if (!state.user) {
+    return <Auth onAuthSuccess={handleAuthSuccess} />;
+  }
+
   const currentLog = state.logs[state.logs.length - 1];
   const isTodayStarted = currentLog && currentLog.date === new Date().toISOString().split('T')[0];
 
@@ -191,44 +229,75 @@ const App: React.FC = () => {
   };
 
   const renderHistory = () => (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-black text-white tracking-tight uppercase">Continuity Logs</h2>
-      <div className="grid grid-cols-1 gap-4">
-        {state.logs.length === 0 ? (
-          <p className="text-slate-400 py-20 text-center italic border border-dashed rounded-3xl">No completed logs yet.</p>
-        ) : (
-          [...state.logs].reverse().map((log, i) => (
-            <div key={i} className="bg-[#0f172a] p-8 rounded-[2rem] border border-white/5 hover:border-emerald-500/20 transition-all">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h4 className="text-xl font-bold text-white">Day {log.dayNumber} Protocol</h4>
-                  <p className="text-xs font-black text-slate-500 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString()} • {log.availableTime} Hours</p>
+    <div className="space-y-12">
+      <div className="space-y-2">
+        <h2 className="text-3xl font-black text-white tracking-tight uppercase">Unified Achievement Log</h2>
+        <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">A chronological feed of execution and intelligence.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        {/* Study Logs Stream */}
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-4">Execution Continuity</h3>
+          {state.logs.length === 0 ? (
+            <p className="text-slate-600 py-12 text-center italic border border-dashed rounded-3xl">No logs archived.</p>
+          ) : (
+            [...state.logs].reverse().map((log, i) => (
+              <div key={i} className="bg-[#0f172a] p-8 rounded-[2rem] border border-white/5 hover:border-emerald-500/20 transition-all shadow-xl">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h4 className="text-xl font-bold text-white">Day {log.dayNumber} Protocol</h4>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString()} • {log.availableTime} Hours</p>
+                  </div>
+                  {log.verdict && (
+                    <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                      log.verdict === 'Strong' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                    }`}>
+                      {log.verdict}
+                    </span>
+                  )}
                 </div>
-                {log.verdict && (
-                  <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                    log.verdict === 'Strong' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                  }`}>
-                    {log.verdict}
+                <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
+                  <p className="text-sm text-slate-300 italic font-medium leading-relaxed">"{log.correction}"</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Progress Breakthroughs Stream */}
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-4">Intelligence Stream</h3>
+          {state.progressLogs.length === 0 ? (
+            <p className="text-slate-600 py-12 text-center italic border border-dashed rounded-3xl">No breakthroughs logged.</p>
+          ) : (
+            [...state.progressLogs].reverse().map((entry, i) => (
+              <div key={i} className="bg-[#0f172a] p-8 rounded-[2rem] border border-white/5 hover:border-indigo-500/20 transition-all shadow-xl">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="inline-block px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] border border-indigo-500/20">
+                    {entry.subject}
                   </span>
-                )}
+                  <p className="text-[9px] font-mono text-slate-500 font-bold uppercase">{new Date(entry.date).toLocaleDateString()}</p>
+                </div>
+                <h4 className="text-lg font-black text-white uppercase tracking-tight mb-4">{entry.topic}</h4>
+                <div className="border-t border-white/5 pt-4">
+                  <p className="text-sm text-slate-400 italic leading-relaxed font-bold">"{entry.notes}"</p>
+                </div>
               </div>
-              <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
-                <p className="text-sm text-slate-300 italic font-medium leading-relaxed">"{log.correction}"</p>
-              </div>
-            </div>
-          ))
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
 
   return (
-    <Layout currentDay={state.currentDayNumber} activeTab={activeTab} setActiveTab={setActiveTab}>
+    <Layout currentDay={state.currentDayNumber} activeTab={activeTab} setActiveTab={setActiveTab} user={state.user} onLogout={handleLogout}>
       {loading && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-2xl z-[200] flex flex-col items-center justify-center text-white p-6 text-center">
           <div className="w-20 h-20 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-8 shadow-[0_0_20px_#10b981]"></div>
-          <h3 className="text-4xl font-black tracking-tighter mb-2 uppercase">Syncing Neural Paths</h3>
-          <p className="text-emerald-400/60 font-black uppercase tracking-widest text-xs">Analyzing daily throughput parameters...</p>
+          <h3 className="text-4xl font-black tracking-tighter mb-2 uppercase">Syncing Local Data</h3>
+          <p className="text-emerald-400/60 font-black uppercase tracking-widest text-xs">Accessing IndexedDB neural pathways...</p>
         </div>
       )}
 

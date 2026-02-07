@@ -12,6 +12,13 @@ export enum Difficulty {
   HARD = 'HARD'
 }
 
+export interface User {
+  id: string;
+  username: string;
+  password?: string; // Stored locally for the gate
+  lastLogin: string;
+}
+
 export interface StudySlot {
   id: string;
   subject: string;
@@ -32,7 +39,6 @@ export interface ProgressEntry {
   date: string;
 }
 
-// Added MistakeEntry interface to resolve export error in MistakeBank.tsx
 export interface MistakeEntry {
   id: string;
   date: string;
@@ -70,13 +76,12 @@ export interface DailyLog {
 }
 
 export interface AppState {
+  user: User | null;
   currentDayNumber: number;
   streak: number;
   logs: DailyLog[];
   progressLogs: ProgressEntry[];
-  currentAffairs: CurrentAffairsEntry[];
-  // Added mistakeEntries to AppState for tracking errors
   mistakeEntries: MistakeEntry[];
-  completedTopics: Record<string, number>; // Topic -> count
-  syllabusProgress: Record<string, number>; // Unit -> Percentage (0-100)
+  completedTopics: Record<string, number>;
+  syllabusProgress: Record<string, number>;
 }

@@ -1,22 +1,14 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("API_KEY is missing. AI features will be limited.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
 // Generate a structured daily study plan based on user parameters
 export async function generateDailyPlan(dayNum: number, availableHours: number, constraints: string, previousPerformance: string) {
-  const ai = getAI();
-  if (!ai) throw new Error("AI service not initialized. Check API Key.");
+  // Always initialize directly right before the call to ensure latest configuration as per guidelines
+  // Use gemini-3-pro-preview for complex reasoning tasks like plan generation
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3-pro-preview',
     contents: `Act as a TNPSC Group 1 Study Planner. Generate a study plan for Day ${dayNum}.
     Available time: ${availableHours} hours.
     Constraints: ${constraints}.
@@ -49,14 +41,12 @@ export async function generateDailyPlan(dayNum: number, availableHours: number, 
 
 // Analyze completed study logs to provide actionable feedback
 export async function analyzeDailyPerformance(logs: any) {
-  const ai = getAI();
-  if (!ai) {
-    return { verdict: 'Average', correction: 'AI Analysis skipped (API key not found).' };
-  }
+  // Use gemini-3-pro-preview for complex evaluation and feedback generation
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: `Analyze this TNPSC study log and provide a verdict (Strong/Average/Poor) and ONE precise correction for tomorrow. No generic advice.
       Logs: ${JSON.stringify(logs)}`,
       config: {
