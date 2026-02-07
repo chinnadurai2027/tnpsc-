@@ -66,7 +66,7 @@ const App: React.FC = () => {
       status: StudyStatus.PENDING
     }));
 
-    const totalTime = slots.reduce((acc, s) => acc + s.timeEstimate, 0) / 60;
+    const totalTime = slots.reduce((acc, s) => acc + (s.timeEstimate || 0), 0) / 60;
 
     const newLog: DailyLog = {
       date: data.date,
@@ -163,7 +163,7 @@ const App: React.FC = () => {
   const addCurrentAffairs = (entry: CurrentAffairsEntry) => {
     setState(prev => ({
       ...prev,
-      currentAffairs: [entry, ...(prev.currentAffairs || [])] as any
+      currentAffairs: [entry, ...(prev.currentAffairs || [])]
     }));
   };
 
@@ -186,12 +186,12 @@ const App: React.FC = () => {
     const items: Array<{
       id: string;
       date: string;
-      type: 'LOG' | 'INTEL' | 'ERROR';
+      type: 'LOG' | 'INTEL' | 'ERROR' | 'CA';
       data: any;
     }> = [];
 
     state.logs.filter(l => l.isCompleted).forEach(log => {
-      items.push({ id: `log-${log.date}`, date: log.date, type: 'LOG', data: log });
+      items.push({ id: `log-${log.date}-${log.dayNumber}`, date: log.date, type: 'LOG', data: log });
     });
 
     state.progressLogs.forEach(entry => {
@@ -202,8 +202,12 @@ const App: React.FC = () => {
       items.push({ id: `error-${mistake.id}`, date: mistake.date, type: 'ERROR', data: mistake });
     });
 
+    state.currentAffairs.forEach(ca => {
+      items.push({ id: `ca-${ca.id}`, date: ca.date, type: 'CA', data: ca });
+    });
+
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [state.logs, state.progressLogs, state.mistakeEntries]);
+  }, [state.logs, state.progressLogs, state.mistakeEntries, state.currentAffairs]);
 
   if (booting) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
@@ -257,36 +261,40 @@ const App: React.FC = () => {
     <div className="space-y-12">
       <div className="space-y-2">
         <h2 className="text-3xl font-black text-white tracking-tight uppercase">Mastery Timeline</h2>
-        <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">A unified feed of your execution, intelligence, and corrections.</p>
+        <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">A unified feed of your execution, intelligence, and news alerts.</p>
       </div>
 
       <div className="relative space-y-8 before:absolute before:left-6 md:before:left-1/2 before:top-0 before:bottom-0 before:w-[1px] before:bg-white/5">
         {timelineData.length === 0 ? (
-          <p className="text-slate-600 py-24 text-center italic border border-dashed rounded-3xl col-span-full">No achievements archived yet. Start your first session.</p>
+          <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-[3rem] col-span-full">
+             <p className="text-slate-600 italic">Zero activities archived. Initialize your first protocol.</p>
+          </div>
         ) : (
           timelineData.map((item) => (
             <div key={item.id} className="relative flex flex-col md:flex-row md:items-center group">
-              {/* Point on timeline */}
               <div className={`absolute left-6 md:left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-[#020617] z-10 ${
                 item.type === 'LOG' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' :
                 item.type === 'INTEL' ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]' :
-                'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'
+                item.type === 'ERROR' ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]' :
+                'bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]'
               }`}></div>
 
-              <div className={`ml-16 md:ml-0 md:w-1/2 ${item.type === 'INTEL' ? 'md:pr-16 md:text-right md:order-1' : 'md:pl-16 md:order-2'}`}>
+              <div className={`ml-16 md:ml-0 md:w-1/2 ${['INTEL', 'CA'].includes(item.type) ? 'md:pr-16 md:text-right md:order-1' : 'md:pl-16 md:order-2'}`}>
                 <div className={`bg-[#0f172a] p-8 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all shadow-xl ${
                   item.type === 'LOG' ? 'hover:border-emerald-500/20' : 
                   item.type === 'INTEL' ? 'hover:border-indigo-500/20' : 
-                  'hover:border-rose-500/20'
+                  item.type === 'ERROR' ? 'hover:border-rose-500/20' :
+                  'hover:border-violet-500/20'
                 }`}>
-                  <div className={`flex flex-col ${item.type === 'INTEL' ? 'md:items-end' : 'md:items-start'} mb-4`}>
+                  <div className={`flex flex-col ${['INTEL', 'CA'].includes(item.type) ? 'md:items-end' : 'md:items-start'} mb-4`}>
                     <div className="flex items-center space-x-3 mb-2">
                        <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
                         item.type === 'LOG' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                         item.type === 'INTEL' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
-                        'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                        item.type === 'ERROR' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                        'bg-violet-500/10 text-violet-400 border-violet-500/20'
                        }`}>
-                        {item.type === 'LOG' ? 'Execution Log' : item.type === 'INTEL' ? 'Intelligence Breakthrough' : 'Failure Analysis'}
+                        {item.type === 'LOG' ? 'Execution' : item.type === 'INTEL' ? 'Breakthrough' : item.type === 'ERROR' ? 'Diagnosis' : 'News Brief'}
                        </span>
                     </div>
                     <p className="text-[10px] font-mono text-slate-500 font-bold uppercase">{new Date(item.date).toLocaleDateString()}</p>
@@ -295,7 +303,9 @@ const App: React.FC = () => {
                   {item.type === 'LOG' && (
                     <div className="space-y-4">
                       <h4 className="text-xl font-bold text-white">Day {item.data.dayNumber} Protocol</h4>
-                      <p className="text-sm text-slate-400 italic leading-relaxed">"{item.data.correction}"</p>
+                      <div className="bg-slate-950/50 p-4 rounded-2xl">
+                         <p className="text-xs text-slate-400 italic leading-relaxed">Correction: "{item.data.correction}"</p>
+                      </div>
                     </div>
                   )}
 
@@ -309,7 +319,14 @@ const App: React.FC = () => {
                   {item.type === 'ERROR' && (
                     <div className="space-y-4">
                       <h4 className="text-xl font-black text-rose-400 uppercase tracking-tight">{item.data.topic}</h4>
-                      <p className="text-xs text-slate-400 font-bold bg-slate-950 p-4 rounded-xl">Correct Concept: {item.data.correctConcept}</p>
+                      <p className="text-xs text-slate-400 font-bold bg-slate-950 p-4 rounded-xl">Fact: {item.data.correctConcept}</p>
+                    </div>
+                  )}
+
+                  {item.type === 'CA' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xl font-black text-violet-400 uppercase tracking-tight">{item.data.title}</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed truncate">{item.data.content}</p>
                     </div>
                   )}
                 </div>
@@ -335,7 +352,7 @@ const App: React.FC = () => {
       {activeTab === 'syllabus' && <SyllabusAudit progress={state.syllabusProgress} onUpdate={updateSyllabusProgress} />}
       {activeTab === 'progress' && <ProgressTracker entries={state.progressLogs || []} onAdd={addProgressEntry} />}
       {activeTab === 'mistakes' && <MistakeBank entries={state.mistakeEntries || []} onAdd={addMistakeEntry} />}
-      {activeTab === 'ca' && <CurrentAffairs entries={(state as any).currentAffairs || []} onAdd={addCurrentAffairs} />}
+      {activeTab === 'ca' && <CurrentAffairs entries={state.currentAffairs || []} onAdd={addCurrentAffairs} />}
       {activeTab === 'history' && renderHistory()}
 
       {currentLog?.isCompleted && activeTab === 'dashboard' && (

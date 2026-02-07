@@ -1,5 +1,5 @@
 
-import Dexie, { type EntityTable } from 'dexie';
+import { Dexie, type EntityTable } from 'dexie';
 import { AppState, User } from '../types';
 
 // Define the database schema
@@ -8,7 +8,7 @@ interface UserData extends AppState {
 }
 
 // TNPSC Study OS Database implementation using Dexie
-// Extending the default Dexie class ensures all prototype methods like .version() are inherited correctly
+// Using a named import for the Dexie class ensures that the TypeScript compiler correctly identifies all inherited prototype methods such as version().
 class TNPSCDatabase extends Dexie {
   users!: EntityTable<User, 'id'>;
   userData!: EntityTable<UserData, 'userId'>;
@@ -16,7 +16,7 @@ class TNPSCDatabase extends Dexie {
   constructor() {
     super('TNPSC_StudyOS_DB');
     // Defining database version and schema stores
-    // this.version is an inherited method from the Dexie base class
+    // this.version() is an inherited instance method from the Dexie base class
     this.version(1).stores({
       users: 'id, username',
       userData: 'userId'

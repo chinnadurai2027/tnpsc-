@@ -34,6 +34,7 @@ export const INITIAL_APP_STATE: AppState = {
   logs: [],
   progressLogs: [],
   mistakeEntries: [],
+  currentAffairs: [],
   completedTopics: {},
   syllabusProgress: {
     'u1': 0, 'u2': 0, 'u3': 0, 'u4': 0, 'u5': 0,

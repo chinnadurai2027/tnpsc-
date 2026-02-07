@@ -82,6 +82,7 @@ export interface AppState {
   logs: DailyLog[];
   progressLogs: ProgressEntry[];
   mistakeEntries: MistakeEntry[];
+  currentAffairs: CurrentAffairsEntry[];
   completedTopics: Record<string, number>;
   syllabusProgress: Record<string, number>;
 }
