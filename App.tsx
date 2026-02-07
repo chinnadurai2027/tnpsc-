@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { CheckIn } from './components/CheckIn';
 import { TaskExecutor } from './components/TaskExecutor';
@@ -10,7 +10,7 @@ import { MistakeBank } from './components/MistakeBank';
 import { Auth } from './components/Auth';
 import { AppState, DailyLog, StudySlot, StudyStatus, ProgressEntry, CurrentAffairsEntry, MistakeEntry, User } from './types';
 import { INITIAL_APP_STATE } from './constants';
-import { saveUserData, loadUserData, getSessionId, saveSessionId, clearSession, authenticateUser } from './services/storageService';
+import { saveUserData, loadUserData, getSessionId, saveSessionId, clearSession } from './services/storageService';
 import { analyzeDailyPerformance } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -86,7 +86,8 @@ const App: React.FC = () => {
 
   const handleSlotUpdate = (slotId: string, updates: Partial<StudySlot>) => {
     setState(prev => {
-      const currentLog = prev.logs[prev.logs.length - 1];
+      const lastLogIdx = prev.logs.length - 1;
+      const currentLog = prev.logs[lastLogIdx];
       if (!currentLog) return prev;
 
       const updatedSlots = currentLog.slots.map(s => 
@@ -104,7 +105,7 @@ const App: React.FC = () => {
       return {
         ...prev,
         completedTopics: updatedTopics,
-        logs: prev.logs.map((l, i) => i === prev.logs.length - 1 ? { ...l, slots: updatedSlots } : l)
+        logs: prev.logs.map((l, i) => i === lastLogIdx ? { ...l, slots: updatedSlots } : l)
       };
     });
   };
@@ -162,7 +163,7 @@ const App: React.FC = () => {
   const addCurrentAffairs = (entry: CurrentAffairsEntry) => {
     setState(prev => ({
       ...prev,
-      currentAffairs: [entry, ...(prev.currentAffairs || [])]
+      currentAffairs: [entry, ...(prev.currentAffairs || [])] as any
     }));
   };
 
@@ -179,6 +180,30 @@ const App: React.FC = () => {
       syllabusProgress: { ...prev.syllabusProgress, [unitId]: percentage }
     }));
   };
+
+  // Interleave and sort all achievement types for the History timeline
+  const timelineData = useMemo(() => {
+    const items: Array<{
+      id: string;
+      date: string;
+      type: 'LOG' | 'INTEL' | 'ERROR';
+      data: any;
+    }> = [];
+
+    state.logs.filter(l => l.isCompleted).forEach(log => {
+      items.push({ id: `log-${log.date}`, date: log.date, type: 'LOG', data: log });
+    });
+
+    state.progressLogs.forEach(entry => {
+      items.push({ id: `intel-${entry.id}`, date: entry.date, type: 'INTEL', data: entry });
+    });
+
+    state.mistakeEntries.forEach(mistake => {
+      items.push({ id: `error-${mistake.id}`, date: mistake.date, type: 'ERROR', data: mistake });
+    });
+
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [state.logs, state.progressLogs, state.mistakeEntries]);
 
   if (booting) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
@@ -231,62 +256,67 @@ const App: React.FC = () => {
   const renderHistory = () => (
     <div className="space-y-12">
       <div className="space-y-2">
-        <h2 className="text-3xl font-black text-white tracking-tight uppercase">Unified Achievement Log</h2>
-        <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">A chronological feed of execution and intelligence.</p>
+        <h2 className="text-3xl font-black text-white tracking-tight uppercase">Mastery Timeline</h2>
+        <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">A unified feed of your execution, intelligence, and corrections.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* Study Logs Stream */}
-        <div className="space-y-6">
-          <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-4">Execution Continuity</h3>
-          {state.logs.length === 0 ? (
-            <p className="text-slate-600 py-12 text-center italic border border-dashed rounded-3xl">No logs archived.</p>
-          ) : (
-            [...state.logs].reverse().map((log, i) => (
-              <div key={i} className="bg-[#0f172a] p-8 rounded-[2rem] border border-white/5 hover:border-emerald-500/20 transition-all shadow-xl">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h4 className="text-xl font-bold text-white">Day {log.dayNumber} Protocol</h4>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString()} • {log.availableTime} Hours</p>
+      <div className="relative space-y-8 before:absolute before:left-6 md:before:left-1/2 before:top-0 before:bottom-0 before:w-[1px] before:bg-white/5">
+        {timelineData.length === 0 ? (
+          <p className="text-slate-600 py-24 text-center italic border border-dashed rounded-3xl col-span-full">No achievements archived yet. Start your first session.</p>
+        ) : (
+          timelineData.map((item) => (
+            <div key={item.id} className="relative flex flex-col md:flex-row md:items-center group">
+              {/* Point on timeline */}
+              <div className={`absolute left-6 md:left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-[#020617] z-10 ${
+                item.type === 'LOG' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' :
+                item.type === 'INTEL' ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]' :
+                'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'
+              }`}></div>
+
+              <div className={`ml-16 md:ml-0 md:w-1/2 ${item.type === 'INTEL' ? 'md:pr-16 md:text-right md:order-1' : 'md:pl-16 md:order-2'}`}>
+                <div className={`bg-[#0f172a] p-8 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all shadow-xl ${
+                  item.type === 'LOG' ? 'hover:border-emerald-500/20' : 
+                  item.type === 'INTEL' ? 'hover:border-indigo-500/20' : 
+                  'hover:border-rose-500/20'
+                }`}>
+                  <div className={`flex flex-col ${item.type === 'INTEL' ? 'md:items-end' : 'md:items-start'} mb-4`}>
+                    <div className="flex items-center space-x-3 mb-2">
+                       <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
+                        item.type === 'LOG' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                        item.type === 'INTEL' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+                        'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                       }`}>
+                        {item.type === 'LOG' ? 'Execution Log' : item.type === 'INTEL' ? 'Intelligence Breakthrough' : 'Failure Analysis'}
+                       </span>
+                    </div>
+                    <p className="text-[10px] font-mono text-slate-500 font-bold uppercase">{new Date(item.date).toLocaleDateString()}</p>
                   </div>
-                  {log.verdict && (
-                    <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                      log.verdict === 'Strong' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                    }`}>
-                      {log.verdict}
-                    </span>
+
+                  {item.type === 'LOG' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xl font-bold text-white">Day {item.data.dayNumber} Protocol</h4>
+                      <p className="text-sm text-slate-400 italic leading-relaxed">"{item.data.correction}"</p>
+                    </div>
+                  )}
+
+                  {item.type === 'INTEL' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xl font-black text-white uppercase tracking-tight">{item.data.topic}</h4>
+                      <p className="text-sm text-slate-400 italic font-bold">"{item.data.notes}"</p>
+                    </div>
+                  )}
+
+                  {item.type === 'ERROR' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xl font-black text-rose-400 uppercase tracking-tight">{item.data.topic}</h4>
+                      <p className="text-xs text-slate-400 font-bold bg-slate-950 p-4 rounded-xl">Correct Concept: {item.data.correctConcept}</p>
+                    </div>
                   )}
                 </div>
-                <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
-                  <p className="text-sm text-slate-300 italic font-medium leading-relaxed">"{log.correction}"</p>
-                </div>
               </div>
-            ))
-          )}
-        </div>
-
-        {/* Progress Breakthroughs Stream */}
-        <div className="space-y-6">
-          <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-4">Intelligence Stream</h3>
-          {state.progressLogs.length === 0 ? (
-            <p className="text-slate-600 py-12 text-center italic border border-dashed rounded-3xl">No breakthroughs logged.</p>
-          ) : (
-            [...state.progressLogs].reverse().map((entry, i) => (
-              <div key={i} className="bg-[#0f172a] p-8 rounded-[2rem] border border-white/5 hover:border-indigo-500/20 transition-all shadow-xl">
-                <div className="flex justify-between items-start mb-4">
-                  <span className="inline-block px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] border border-indigo-500/20">
-                    {entry.subject}
-                  </span>
-                  <p className="text-[9px] font-mono text-slate-500 font-bold uppercase">{new Date(entry.date).toLocaleDateString()}</p>
-                </div>
-                <h4 className="text-lg font-black text-white uppercase tracking-tight mb-4">{entry.topic}</h4>
-                <div className="border-t border-white/5 pt-4">
-                  <p className="text-sm text-slate-400 italic leading-relaxed font-bold">"{entry.notes}"</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -296,8 +326,8 @@ const App: React.FC = () => {
       {loading && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-2xl z-[200] flex flex-col items-center justify-center text-white p-6 text-center">
           <div className="w-20 h-20 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-8 shadow-[0_0_20px_#10b981]"></div>
-          <h3 className="text-4xl font-black tracking-tighter mb-2 uppercase">Syncing Local Data</h3>
-          <p className="text-emerald-400/60 font-black uppercase tracking-widest text-xs">Accessing IndexedDB neural pathways...</p>
+          <h3 className="text-4xl font-black tracking-tighter mb-2 uppercase">Syncing Neural Paths</h3>
+          <p className="text-emerald-400/60 font-black uppercase tracking-widest text-xs">Accessing IndexedDB Local Bank...</p>
         </div>
       )}
 
@@ -305,7 +335,7 @@ const App: React.FC = () => {
       {activeTab === 'syllabus' && <SyllabusAudit progress={state.syllabusProgress} onUpdate={updateSyllabusProgress} />}
       {activeTab === 'progress' && <ProgressTracker entries={state.progressLogs || []} onAdd={addProgressEntry} />}
       {activeTab === 'mistakes' && <MistakeBank entries={state.mistakeEntries || []} onAdd={addMistakeEntry} />}
-      {activeTab === 'ca' && <CurrentAffairs entries={state.currentAffairs || []} onAdd={addCurrentAffairs} />}
+      {activeTab === 'ca' && <CurrentAffairs entries={(state as any).currentAffairs || []} onAdd={addCurrentAffairs} />}
       {activeTab === 'history' && renderHistory()}
 
       {currentLog?.isCompleted && activeTab === 'dashboard' && (

@@ -1,4 +1,6 @@
 
+import { AppState } from './types';
+
 export const SUBJECTS = [
   'Indian Polity (Laxmikanth)',
   'History (NCERT + TN)',
@@ -25,13 +27,12 @@ export const TNPSC_SYLLABUS = [
   { id: 'u10', name: 'Aptitude & Mental Ability', weight: 25 },
 ];
 
-export const INITIAL_APP_STATE: any = {
+export const INITIAL_APP_STATE: AppState = {
+  user: null,
   currentDayNumber: 1,
   streak: 0,
   logs: [],
   progressLogs: [],
-  currentAffairs: [],
-  // Initialize mistakeEntries as an empty array
   mistakeEntries: [],
   completedTopics: {},
   syllabusProgress: {

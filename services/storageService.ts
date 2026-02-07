@@ -1,5 +1,5 @@
 
-import { Dexie, type EntityTable } from 'https://esm.sh/dexie@^4.0.1';
+import Dexie, { type EntityTable } from 'dexie';
 import { AppState, User } from '../types';
 
 // Define the database schema
@@ -7,14 +7,17 @@ interface UserData extends AppState {
   userId: string;
 }
 
+// TNPSC Study OS Database implementation using Dexie
+// Extending the default Dexie class ensures all prototype methods like .version() are inherited correctly
 class TNPSCDatabase extends Dexie {
   users!: EntityTable<User, 'id'>;
   userData!: EntityTable<UserData, 'userId'>;
 
   constructor() {
     super('TNPSC_StudyOS_DB');
-    // Fix: Explicitly cast 'this' to any to avoid type check errors with inherited version method in ESM environments
-    (this as any).version(1).stores({
+    // Defining database version and schema stores
+    // this.version is an inherited method from the Dexie base class
+    this.version(1).stores({
       users: 'id, username',
       userData: 'userId'
     });
